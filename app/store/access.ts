@@ -51,6 +51,11 @@ const DEFAULT_ACCESS_STATE = {
   customModels: "",
   isEnableRAG: false,
   defaultModel: "",
+
+  // tts config
+  edgeTTSVoiceName: "zh-CN-YunxiNeural",
+
+  isUseOpenAIEndpointForAllModels: false,
 };
 
 export const useAccessStore = createPersistStore(
@@ -61,6 +66,18 @@ export const useAccessStore = createPersistStore(
       this.fetch();
 
       return get().needCode;
+    },
+
+    useOpenAIEndpointForAllModels() {
+      this.fetch();
+
+      return get().isUseOpenAIEndpointForAllModels;
+    },
+
+    edgeVoiceName() {
+      this.fetch();
+
+      return get().edgeTTSVoiceName;
     },
 
     enableRAG() {
