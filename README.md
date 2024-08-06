@@ -1,4 +1,5 @@
 <div align="center">
+
 <img src="./docs/images/head-cover.png" alt="icon"/>
 
 <h1 align="center">ChatGPT Next Web LangChain</h1>
@@ -7,7 +8,7 @@
 
 [![Web][Web-image]][web-url]
 
-[网页版](https://n3xt.chat) / [反馈](https://github.com/Hk-Gosuto/ChatGPT-Next-Web-LangChain/issues) / [Discord](https://discord.gg/2Dvtf7Pq) / QQ群: `763467624`
+[网页版](https://n3xt.chat) / [反馈](https://github.com/Hk-Gosuto/ChatGPT-Next-Web-LangChain/issues) / [Discord](https://discord.gg/QPrKZFwWn8) / QQ群: `763467624`
 
 [web-url]: https://n3xt.chat/
 [download-url]: https://github.com/Hk-Gosuto/ChatGPT-Next-Web-LangChain/releases
@@ -25,7 +26,7 @@
 > [!WARNING]
 > 本项目插件功能基于 [OpenAI API 函数调用](https://platform.openai.com/docs/guides/function-calling) 功能实现，转发 GitHub Copilot 接口或类似实现的模拟接口并不能正常调用插件功能！
 
-![cover](./docs/images/rag-example.jpg)
+![cover](./docs/images/rag-example-2.jpg)
 
 ![plugin-example](./docs/images/plugin-example.png)
 
@@ -35,8 +36,8 @@
 
 ## 主要功能
 
-- RAG 功能 （预览）
-  - 配置请参考文档[RAG 功能配置说明](./docs/rag-cn.md)
+- RAG 功能
+  - 配置请参考文档 [RAG 功能配置说明](./docs/rag-cn.md)
 
 - 除插件工具外，与原项目保持一致 [ChatGPT-Next-Web 主要功能](https://github.com/Yidadaa/ChatGPT-Next-Web#主要功能)
 
@@ -238,7 +239,7 @@ OpenAI 接口代理 URL，如果你手动配置了 openai 接口代理，请填�
 
 Google Gemini Pro Api Key.
 
-### ~~ `GOOGLE_BASE_URL` （可选）~~  `GEMINI_BASE_URL` （可选）
+### `GEMINI_BASE_URL` （可选）
 
 Google Gemini Pro Api Url.
 
@@ -283,6 +284,17 @@ anthropic claude Api Url.
 ### `DISABLE_FAST_LINK` （可选）
 
 如果你想禁用从链接解析预制设置，将此环境变量设置为 1 即可。
+
+For Azure: use `modelName@azure=deploymentName` to customize model name and deployment name.
+> Example: `+gpt-3.5-turbo@azure=gpt35` will show option `gpt35(Azure)` in model list.
+> If you only can use Azure model, `-all,+gpt-3.5-turbo@azure=gpt35` will `gpt35(Azure)` the only option in model list.
+
+For ByteDance: use `modelName@bytedance=deploymentName` to customize model name and deployment name.
+> Example: `+Doubao-lite-4k@bytedance=ep-xxxxx-xxx` will show option `Doubao-lite-4k(ByteDance)` in model list.
+
+### `DEFAULT_MODEL` （optional）
+
+Change default model
 
 ### `WHITE_WEBDEV_ENDPOINTS` (optional)
 

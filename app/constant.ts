@@ -13,6 +13,16 @@ export const OPENAI_BASE_URL = "https://api.openai.com";
 export const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/";
 export const ANTHROPIC_BASE_URL = "https://api.anthropic.com";
 
+export const BAIDU_BASE_URL = "https://aip.baidubce.com";
+export const BAIDU_OATUH_URL = `${BAIDU_BASE_URL}/oauth/2.0/token`;
+
+export const BYTEDANCE_BASE_URL = "https://ark.cn-beijing.volces.com";
+
+export const ALIBABA_BASE_URL = "https://dashscope.aliyuncs.com/api/";
+
+export const CACHE_URL_PREFIX = "/api/cache";
+export const UPLOAD_URL = `${CACHE_URL_PREFIX}/upload`;
+
 export enum Path {
   Home = "/",
   Chat = "/chat",
@@ -25,9 +35,14 @@ export enum Path {
 
 export enum ApiPath {
   Cors = "",
+  Azure = "/api/azure",
   OpenAI = "/api/openai",
   GoogleAI = "/api/google",
   Anthropic = "/api/anthropic",
+  Google = "/api/google",
+  Baidu = "/api/baidu",
+  ByteDance = "/api/bytedance",
+  Alibaba = "/api/alibaba",
 }
 
 export enum SlotID {
@@ -73,12 +88,27 @@ export enum ServiceProvider {
   Azure = "Azure",
   Google = "Google",
   Anthropic = "Anthropic",
+  Baidu = "Baidu",
+  ByteDance = "ByteDance",
+  Alibaba = "Alibaba",
+}
+
+// Google API safety settings, see https://ai.google.dev/gemini-api/docs/safety-settings
+// BLOCK_NONE will not block any content, and BLOCK_ONLY_HIGH will block only high-risk content.
+export enum GoogleSafetySettingsThreshold {
+  BLOCK_NONE = "BLOCK_NONE",
+  BLOCK_ONLY_HIGH = "BLOCK_ONLY_HIGH",
+  BLOCK_MEDIUM_AND_ABOVE = "BLOCK_MEDIUM_AND_ABOVE",
+  BLOCK_LOW_AND_ABOVE = "BLOCK_LOW_AND_ABOVE",
 }
 
 export enum ModelProvider {
   GPT = "GPT",
   GeminiPro = "GeminiPro",
   Claude = "Claude",
+  Ernie = "Ernie",
+  Doubao = "Doubao",
+  Qwen = "Qwen",
 }
 
 export const Anthropic = {
@@ -98,12 +128,45 @@ export const OpenaiPath = {
 };
 
 export const Azure = {
-  ExampleEndpoint: "https://{resource-url}/openai/deployments",
+  ChatPath: (deployName: string, apiVersion: string) =>
+    `deployments/${deployName}/chat/completions?api-version=${apiVersion}`,
+  ExampleEndpoint: "https://{resource-url}/openai/deployments/{deploy-id}",
 };
 
 export const Google = {
   ExampleEndpoint: "https://generativelanguage.googleapis.com/",
-  ChatPath: (modelName: string) => `v1beta/models/${modelName}:generateContent`,
+  ChatPath: (modelName: string) =>
+    `v1beta/models/${modelName}:streamGenerateContent`,
+};
+
+export const Baidu = {
+  ExampleEndpoint: BAIDU_BASE_URL,
+  ChatPath: (modelName: string) => {
+    let endpoint = modelName;
+    if (modelName === "ernie-4.0-8k") {
+      endpoint = "completions_pro";
+    }
+    if (modelName === "ernie-4.0-8k-preview-0518") {
+      endpoint = "completions_adv_pro";
+    }
+    if (modelName === "ernie-3.5-8k") {
+      endpoint = "completions";
+    }
+    if (modelName === "ernie-speed-8k") {
+      endpoint = "ernie_speed";
+    }
+    return `rpc/2.0/ai_custom/v1/wenxinworkshop/chat/${endpoint}`;
+  },
+};
+
+export const ByteDance = {
+  ExampleEndpoint: "https://ark.cn-beijing.volces.com/api/",
+  ChatPath: "api/v3/chat/completions",
+};
+
+export const Alibaba = {
+  ExampleEndpoint: ALIBABA_BASE_URL,
+  ChatPath: "v1/services/aigc/text-generation/generation",
 };
 
 export const DEFAULT_INPUT_TEMPLATE = `{{input}}`; // input / time / model / lang
@@ -124,7 +187,7 @@ Latex inline: \\(x^2\\)
 Latex block: $$e=mc^2$$
 `;
 
-export const SUMMARIZE_MODEL = "gpt-3.5-turbo";
+export const SUMMARIZE_MODEL = "gpt-4o-mini";
 export const GEMINI_SUMMARIZE_MODEL = "gemini-pro";
 
 export const KnowledgeCutOffDate: Record<string, string> = {
@@ -134,6 +197,8 @@ export const KnowledgeCutOffDate: Record<string, string> = {
   "gpt-4-turbo-preview": "2023-12",
   "gpt-4o": "2023-10",
   "gpt-4o-2024-05-13": "2023-10",
+  "gpt-4o-mini": "2023-10",
+  "gpt-4o-mini-2024-07-18": "2023-10",
   "gpt-4-vision-preview": "2023-04",
   // After improvements,
   // it's now easier to add "KnowledgeCutOffDate" instead of stupid hardcoding it, as was done previously.
@@ -170,8 +235,11 @@ const openaiModels = [
   "gpt-4-turbo-preview",
   "gpt-4o",
   "gpt-4o-2024-05-13",
+  "gpt-4o-mini",
+  "gpt-4o-mini-2024-07-18",
   "gpt-4-vision-preview",
   "gpt-4-turbo-2024-04-09",
+  "gpt-4-1106-preview",
 ];
 
 const googleModels = [
@@ -191,6 +259,39 @@ const anthropicModels = [
   "claude-3-5-sonnet-20240620",
 ];
 
+const baiduModels = [
+  "ernie-4.0-turbo-8k",
+  "ernie-4.0-8k",
+  "ernie-4.0-8k-preview",
+  "ernie-4.0-8k-preview-0518",
+  "ernie-4.0-8k-latest",
+  "ernie-3.5-8k",
+  "ernie-3.5-8k-0205",
+  "ernie-speed-128k",
+  "ernie-speed-8k",
+  "ernie-lite-8k",
+  "ernie-tiny-8k",
+];
+
+const bytedanceModels = [
+  "Doubao-lite-4k",
+  "Doubao-lite-32k",
+  "Doubao-lite-128k",
+  "Doubao-pro-4k",
+  "Doubao-pro-32k",
+  "Doubao-pro-128k",
+];
+
+const alibabaModes = [
+  "qwen-turbo",
+  "qwen-plus",
+  "qwen-max",
+  "qwen-max-0428",
+  "qwen-max-0403",
+  "qwen-max-0107",
+  "qwen-max-longcontext",
+];
+
 export const DEFAULT_MODELS = [
   ...openaiModels.map((name) => ({
     name,
@@ -199,6 +300,15 @@ export const DEFAULT_MODELS = [
       id: "openai",
       providerName: "OpenAI",
       providerType: "openai",
+    },
+  })),
+  ...openaiModels.map((name) => ({
+    name,
+    available: true,
+    provider: {
+      id: "azure",
+      providerName: "Azure",
+      providerType: "azure",
     },
   })),
   ...googleModels.map((name) => ({
@@ -219,6 +329,33 @@ export const DEFAULT_MODELS = [
       providerType: "anthropic",
     },
   })),
+  ...baiduModels.map((name) => ({
+    name,
+    available: true,
+    provider: {
+      id: "baidu",
+      providerName: "Baidu",
+      providerType: "baidu",
+    },
+  })),
+  ...bytedanceModels.map((name) => ({
+    name,
+    available: true,
+    provider: {
+      id: "bytedance",
+      providerName: "ByteDance",
+      providerType: "bytedance",
+    },
+  })),
+  ...alibabaModes.map((name) => ({
+    name,
+    available: true,
+    provider: {
+      id: "alibaba",
+      providerName: "Alibaba",
+      providerType: "alibaba",
+    },
+  })),
 ] as const;
 
 export const CHAT_PAGE_SIZE = 15;
@@ -236,3 +373,30 @@ export const internalAllowedWebDavEndpoints = [
   "https://webdav.yandex.com",
   "https://app.koofr.net/dav/Koofr",
 ];
+
+export const MYFILES_BROWSER_TOOLS_SYSTEM_PROMPT = `
+# Tools
+
+## myfiles_browser
+
+You have the tool 'myfiles_browser' with the following functions:
+issues queries to search the file(s) uploaded in the current conversation and displays the results.
+
+This tool is for browsing the files uploaded by the user.
+
+Parts of the documents uploaded by users will be automatically included in the conversation. Only use this tool when the relevant parts don't contain the necessary information to fulfill the user's request.
+
+If the user needs to summarize the document, they can summarize it through parts of the document.
+
+Think carefully about how the information you find relates to the user's request. Respond as soon as you find information that clearly answers the request.
+
+Issue multiple queries to the 'myfiles_browser' command only when the user's question needs to be decomposed to find different facts. In other scenarios, prefer providing a single query. Avoid single-word queries that are extremely broad and will return unrelated results.
+
+Here are some examples of how to use the 'myfiles_browser' command:
+User: What was the GDP of France and Italy in the 1970s? => myfiles_browser(["france gdp 1970", "italy gdp 1970"])
+User: What does the report say about the GPT4 performance on MMLU? => myfiles_browser(["GPT4 MMLU performance"])
+User: How can I integrate customer relationship management system with third-party email marketing tools? => myfiles_browser(["customer management system marketing integration"])
+User: What are the best practices for data security and privacy for our cloud storage services? => myfiles_browser(["cloud storage security and privacy"])
+
+The user has uploaded the following files:
+`;
