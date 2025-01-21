@@ -260,6 +260,7 @@ export function isVisionModel(model: string) {
     "claude-3",
     "gemini-1.5-pro",
     "gemini-1.5-flash",
+    "gemini-exp-1114",
     "gpt-4o",
     "gpt-4o-mini",
   ];
@@ -275,6 +276,24 @@ export function isVisionModel(model: string) {
 
 export function isDalle3(model: string) {
   return "dall-e-3" === model;
+}
+
+export function showPlugins(provider: ServiceProvider, model: string) {
+  if (
+    provider == ServiceProvider.OpenAI ||
+    provider == ServiceProvider.Azure ||
+    provider == ServiceProvider.Moonshot ||
+    provider == ServiceProvider.ChatGLM
+  ) {
+    return true;
+  }
+  if (provider == ServiceProvider.Anthropic && !model.includes("claude-2")) {
+    return true;
+  }
+  if (provider == ServiceProvider.Google && !model.includes("vision")) {
+    return true;
+  }
+  return false;
 }
 
 export function isSupportRAGModel(modelName: string) {
@@ -317,29 +336,14 @@ export function isFunctionCallModel(modelName: string) {
     "claude-3-opus-20240229",
     "claude-3-haiku-20240307",
     "claude-3-5-sonnet-20240620",
+    "claude-3-5-sonnet-20241022",
+    "claude-3-5-sonnet-latest",
+    "claude-3-5-haiku-latest",
   ];
   if (specialModels.some((keyword) => modelName === keyword)) return true;
   return DEFAULT_MODELS.filter(
     (model) => model.provider.id === "openai" && !model.name.includes("o1"),
   ).some((model) => model.name === modelName);
-}
-
-export function showPlugins(provider: ServiceProvider, model: string) {
-  if (
-    provider == ServiceProvider.OpenAI ||
-    provider == ServiceProvider.Azure ||
-    provider == ServiceProvider.Moonshot ||
-    provider == ServiceProvider.ChatGLM
-  ) {
-    return true;
-  }
-  if (provider == ServiceProvider.Anthropic && !model.includes("claude-2")) {
-    return true;
-  }
-  if (provider == ServiceProvider.Google && !model.includes("vision")) {
-    return true;
-  }
-  return false;
 }
 
 export function fetch(
