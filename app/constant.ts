@@ -28,9 +28,13 @@ export const TENCENT_BASE_URL = "https://hunyuan.tencentcloudapi.com";
 export const MOONSHOT_BASE_URL = "https://api.moonshot.cn";
 export const IFLYTEK_BASE_URL = "https://spark-api-open.xf-yun.com";
 
+export const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
+
 export const XAI_BASE_URL = "https://api.x.ai";
 
 export const CHATGLM_BASE_URL = "https://open.bigmodel.cn";
+
+export const SILICONFLOW_BASE_URL = "https://api.siliconflow.cn";
 
 export const CACHE_URL_PREFIX = "/api/cache";
 export const UPLOAD_URL = `${CACHE_URL_PREFIX}/upload`;
@@ -62,6 +66,8 @@ export enum ApiPath {
   Artifacts = "/api/artifacts",
   XAI = "/api/xai",
   ChatGLM = "/api/chatglm",
+  DeepSeek = "/api/deepseek",
+  SiliconFlow = "/api/siliconflow",
 }
 
 export enum SlotID {
@@ -99,6 +105,7 @@ export const UNFINISHED_INPUT = (id: string) => "unfinished-input-" + id;
 export const STORAGE_KEY = "chatgpt-next-web";
 
 export const REQUEST_TIMEOUT_MS = 60000;
+export const REQUEST_TIMEOUT_MS_FOR_THINKING = REQUEST_TIMEOUT_MS * 5;
 
 export const EXPORT_MESSAGE_CLASS_NAME = "export-markdown";
 
@@ -116,6 +123,8 @@ export enum ServiceProvider {
   Iflytek = "Iflytek",
   XAI = "XAI",
   ChatGLM = "ChatGLM",
+  DeepSeek = "DeepSeek",
+  SiliconFlow = "SiliconFlow",
 }
 
 // Google API safety settings, see https://ai.google.dev/gemini-api/docs/safety-settings
@@ -140,6 +149,8 @@ export enum ModelProvider {
   Iflytek = "Iflytek",
   XAI = "XAI",
   ChatGLM = "ChatGLM",
+  DeepSeek = "DeepSeek",
+  SiliconFlow = "SiliconFlow",
 }
 
 export const Stability = {
@@ -222,6 +233,11 @@ export const Iflytek = {
   ChatPath: "v1/chat/completions",
 };
 
+export const DeepSeek = {
+  ExampleEndpoint: DEEPSEEK_BASE_URL,
+  ChatPath: "chat/completions",
+};
+
 export const XAI = {
   ExampleEndpoint: XAI_BASE_URL,
   ChatPath: "v1/chat/completions",
@@ -230,6 +246,11 @@ export const XAI = {
 export const ChatGLM = {
   ExampleEndpoint: CHATGLM_BASE_URL,
   ChatPath: "/api/paas/v4/chat/completions",
+};
+
+export const SiliconFlow = {
+  ExampleEndpoint: SILICONFLOW_BASE_URL,
+  ChatPath: "v1/chat/completions",
 };
 
 export const DEFAULT_INPUT_TEMPLATE = `{{input}}`; // input / time / model / lang
@@ -252,6 +273,7 @@ Latex block: $$e=mc^2$$
 
 export const SUMMARIZE_MODEL = "gpt-4o-mini";
 export const GEMINI_SUMMARIZE_MODEL = "gemini-pro";
+export const DEEPSEEK_SUMMARIZE_MODEL = "deepseek-chat";
 
 export const KnowledgeCutOffDate: Record<string, string> = {
   default: "2021-09",
@@ -261,17 +283,25 @@ export const KnowledgeCutOffDate: Record<string, string> = {
   "gpt-4o": "2023-10",
   "gpt-4o-2024-05-13": "2023-10",
   "gpt-4o-2024-08-06": "2023-10",
+  "gpt-4o-2024-11-20": "2023-10",
   "chatgpt-4o-latest": "2023-10",
   "gpt-4o-mini": "2023-10",
   "gpt-4o-mini-2024-07-18": "2023-10",
   "gpt-4-vision-preview": "2023-04",
+  "o1-mini-2024-09-12": "2023-10",
   "o1-mini": "2023-10",
+  "o1-preview-2024-09-12": "2023-10",
   "o1-preview": "2023-10",
+  "o1-2024-12-17": "2023-10",
+  o1: "2023-10",
+  "o3-mini-2025-01-31": "2023-10",
+  "o3-mini": "2023-10",
   // After improvements,
   // it's now easier to add "KnowledgeCutOffDate" instead of stupid hardcoding it, as was done previously.
   "gemini-pro": "2023-12",
   "gemini-pro-vision": "2023-12",
-  "gemini-exp-1114": "2024-11",
+  "deepseek-chat": "2024-07",
+  "deepseek-coder": "2024-07",
 };
 
 export const DEFAULT_TTS_ENGINE = "OpenAI-TTS";
@@ -288,10 +318,29 @@ export const DEFAULT_TTS_VOICES = [
   "shimmer",
 ];
 
+export const VISION_MODEL_REGEXES = [
+  /vision/,
+  /gpt-4o/,
+  /claude-3/,
+  /gemini-1\.5/,
+  /gemini-exp/,
+  /gemini-2\.0/,
+  /learnlm/,
+  /qwen-vl/,
+  /qwen2-vl/,
+  /gpt-4-turbo(?!.*preview)/, // Matches "gpt-4-turbo" but not "gpt-4-turbo-preview"
+  /^dall-e-3$/, // Matches exactly "dall-e-3"
+  /glm-4v/,
+];
+
+export const EXCLUDE_VISION_MODEL_REGEXES = [/claude-3-5-haiku-20241022/];
+
 export const DEFAULT_STT_ENGINE = "WebAPI";
 export const DEFAULT_STT_ENGINES = ["WebAPI", "OpenAI Whisper"];
 export const FIREFOX_DEFAULT_STT_ENGINE = "OpenAI Whisper";
 const openaiModels = [
+  // As of July 2024, gpt-4o-mini should be used in place of gpt-3.5-turbo,
+  // as it is cheaper, more capable, multimodal, and just as fast. gpt-3.5-turbo is still available for use in the API.
   "gpt-3.5-turbo",
   "gpt-3.5-turbo-1106",
   "gpt-3.5-turbo-0125",
@@ -304,37 +353,50 @@ const openaiModels = [
   "gpt-4o",
   "gpt-4o-2024-05-13",
   "gpt-4o-2024-08-06",
+  "gpt-4o-2024-11-20",
   "chatgpt-4o-latest",
   "gpt-4o-mini",
   "gpt-4o-mini-2024-07-18",
   "gpt-4-vision-preview",
   "gpt-4-turbo-2024-04-09",
   "gpt-4-1106-preview",
+  "gpt-4.5-preview",
+  "gpt-4.5-preview-2025-02-27",
   "dall-e-3",
   "o1-mini",
   "o1-preview",
+  "o3-mini",
 ];
 
 const googleModels = [
-  "gemini-1.0-pro",
-  "gemini-1.5-pro-latest",
-  "gemini-1.5-flash-latest",
-  "gemini-pro-vision",
-  "gemini-exp-1114",
+  // https://ai.google.dev/gemini-api/docs/models/gemini?hl=zh-cn
+  "gemini-2.0-flash",
+  "gemini-2.0-flash-lite-preview-02-05",
+  "gemini-1.5-flash",
+  "gemini-1.5-flash-8b",
+  "gemini-1.5-pro",
+  // https://ai.google.dev/gemini-api/docs/models/experimental-models?hl=zh-cn
+  "gemini-2.0-pro-exp-02-05",
+  "gemini-2.0-flash-thinking-exp-01-21",
+  "gemini-2.0-flash-exp",
+  "gemini-exp-1206",
+  "learnlm-1.5-pro-experimental",
 ];
 
 const anthropicModels = [
-  "claude-instant-1.2",
   "claude-2.0",
   "claude-2.1",
   "claude-3-sonnet-20240229",
   "claude-3-opus-20240229",
   "claude-3-opus-latest",
   "claude-3-haiku-20240307",
+  "claude-3-5-haiku-20241022",
+  "claude-3-5-haiku-latest",
   "claude-3-5-sonnet-20240620",
   "claude-3-5-sonnet-20241022",
   "claude-3-5-sonnet-latest",
-  "claude-3-5-haiku-latest",
+  "claude-3-7-sonnet-20250219",
+  "claude-3-7-sonnet-latest",
 ];
 
 const baiduModels = [
@@ -358,6 +420,10 @@ const bytedanceModels = [
   "Doubao-pro-4k",
   "Doubao-pro-32k",
   "Doubao-pro-128k",
+  "deepseek-v3-241226",
+  "deepseek-r1-250120",
+  "deepseek-r1-distill-qwen-7b-250120",
+  "deepseek-r1-distill-qwen-32b-250120",
 ];
 
 const alibabaModes = [
@@ -390,6 +456,8 @@ const iflytekModels = [
   "4.0Ultra",
 ];
 
+const deepseekModels = ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"];
+
 const xAIModes = ["grok-beta"];
 
 const chatglmModels = [
@@ -401,6 +469,30 @@ const chatglmModels = [
   "glm-4-long",
   "glm-4-flashx",
   "glm-4-flash",
+  "glm-4v-plus",
+  "glm-4v",
+  "glm-4v-flash", // free
+  "cogview-3-plus",
+  "cogview-3",
+  "cogview-3-flash", // free
+  // 目前无法适配轮询任务
+  //   "cogvideox",
+  //   "cogvideox-flash", // free
+];
+
+const siliconflowModels = [
+  "Qwen/Qwen2.5-7B-Instruct",
+  "Qwen/Qwen2.5-72B-Instruct",
+  "deepseek-ai/DeepSeek-R1",
+  "deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
+  "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+  "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
+  "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B",
+  "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
+  "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+  "deepseek-ai/DeepSeek-V3",
+  "meta-llama/Llama-3.3-70B-Instruct",
+  "THUDM/glm-4-9b-chat",
 ];
 
 let seq = 1000; // 内置的模型序号生成器从1000开始
@@ -537,6 +629,28 @@ export const DEFAULT_MODELS = [
       sorted: 12,
     },
   })),
+  ...deepseekModels.map((name) => ({
+    name,
+    available: true,
+    sorted: seq++,
+    provider: {
+      id: "deepseek",
+      providerName: "DeepSeek",
+      providerType: "deepseek",
+      sorted: 13,
+    },
+  })),
+  ...siliconflowModels.map((name) => ({
+    name,
+    available: true,
+    sorted: seq++,
+    provider: {
+      id: "siliconflow",
+      providerName: "SiliconFlow",
+      providerType: "siliconflow",
+      sorted: 14,
+    },
+  })),
 ] as const;
 
 export const CHAT_PAGE_SIZE = 15;
@@ -556,30 +670,3 @@ export const internalAllowedWebDavEndpoints = [
 ];
 
 export const DEFAULT_GA_ID = "G-89WN60ZK2E";
-
-export const MYFILES_BROWSER_TOOLS_SYSTEM_PROMPT = `
-# Tools
-
-## myfiles_browser
-
-You have the tool 'myfiles_browser' with the following functions:
-issues queries to search the file(s) uploaded in the current conversation and displays the results.
-
-This tool is for browsing the files uploaded by the user.
-
-Parts of the documents uploaded by users will be automatically included in the conversation. Only use this tool when the relevant parts don't contain the necessary information to fulfill the user's request.
-
-If the user needs to summarize the document, they can summarize it through parts of the document.
-
-Think carefully about how the information you find relates to the user's request. Respond as soon as you find information that clearly answers the request.
-
-Issue multiple queries to the 'myfiles_browser' command only when the user's question needs to be decomposed to find different facts. In other scenarios, prefer providing a single query. Avoid single-word queries that are extremely broad and will return unrelated results.
-
-Here are some examples of how to use the 'myfiles_browser' command:
-User: What was the GDP of France and Italy in the 1970s? => myfiles_browser(["france gdp 1970", "italy gdp 1970"])
-User: What does the report say about the GPT4 performance on MMLU? => myfiles_browser(["GPT4 MMLU performance"])
-User: How can I integrate customer relationship management system with third-party email marketing tools? => myfiles_browser(["customer management system marketing integration"])
-User: What are the best practices for data security and privacy for our cloud storage services? => myfiles_browser(["cloud storage security and privacy"])
-
-The user has uploaded the following files:
-`;

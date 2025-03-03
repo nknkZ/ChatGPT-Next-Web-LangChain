@@ -17,7 +17,11 @@ import {
   usePluginStore,
 } from "@/app/store";
 import { collectModelsWithDefaultModel } from "@/app/utils/model";
-import { preProcessImageContent, stream } from "@/app/utils/chat";
+import {
+  preProcessImageAndWebReferenceContent,
+  preProcessImageContent,
+  stream,
+} from "@/app/utils/chat";
 import { cloudflareAIGatewayUrl } from "@/app/utils/cloudflare";
 import { DalleSize, DalleQuality, DalleStyle } from "@/app/typing";
 
@@ -44,6 +48,7 @@ import {
   getMessageTextContent,
   isVisionModel,
   isDalle3 as _isDalle3,
+  getWebReferenceMessageTextContent,
 } from "@/app/utils";
 
 export interface OpenAIListModelResponse {
@@ -238,8 +243,8 @@ export class ChatGPTApi implements LLMApi {
       const messages: ChatOptions["messages"] = [];
       for (const v of options.messages) {
         const content = visionModel
-          ? await preProcessImageContent(v.content)
-          : getMessageTextContent(v);
+          ? await preProcessImageAndWebReferenceContent(v)
+          : getWebReferenceMessageTextContent(v);
         if (!(isO1 && v.role === "system"))
           messages.push({ role: v.role, content });
       }
@@ -428,7 +433,7 @@ export class ChatGPTApi implements LLMApi {
     const messages: AgentChatOptions["messages"] = [];
     for (const v of options.messages) {
       const content = visionModel
-        ? await preProcessImageContent(v.content)
+        ? await preProcessImageAndWebReferenceContent(v)
         : getMessageTextContent(v);
       messages.push({ role: v.role, content });
     }

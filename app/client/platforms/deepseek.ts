@@ -1,6 +1,11 @@
 "use client";
 // azure and openai, using same models. so using same LLMApi.
-import { ApiPath, XAI_BASE_URL, XAI, REQUEST_TIMEOUT_MS } from "@/app/constant";
+import {
+  ApiPath,
+  DEEPSEEK_BASE_URL,
+  DeepSeek,
+  REQUEST_TIMEOUT_MS,
+} from "@/app/constant";
 import {
   useAccessStore,
   useAppConfig,
@@ -8,7 +13,7 @@ import {
   ChatMessageTool,
   usePluginStore,
 } from "@/app/store";
-import { stream } from "@/app/utils/chat";
+import { streamWithThink } from "@/app/utils/chat";
 import {
   AgentChatOptions,
   ChatOptions,
@@ -22,12 +27,13 @@ import {
 import { getClientConfig } from "@/app/config/client";
 import {
   getMessageTextContent,
+  getMessageTextContentWithoutThinking,
   getWebReferenceMessageTextContent,
 } from "@/app/utils";
 import { RequestPayload } from "./openai";
 import { fetch } from "@/app/utils/stream";
 
-export class XAIApi implements LLMApi {
+export class DeepSeekApi implements LLMApi {
   transcription(options: TranscriptionOptions): Promise<string> {
     throw new Error("Method not implemented.");
   }
@@ -45,19 +51,19 @@ export class XAIApi implements LLMApi {
     let baseUrl = "";
 
     if (accessStore.useCustomConfig) {
-      baseUrl = accessStore.xaiUrl;
+      baseUrl = accessStore.deepseekUrl;
     }
 
     if (baseUrl.length === 0) {
       const isApp = !!getClientConfig()?.isApp;
-      const apiPath = ApiPath.XAI;
-      baseUrl = isApp ? XAI_BASE_URL : apiPath;
+      const apiPath = ApiPath.DeepSeek;
+      baseUrl = isApp ? DEEPSEEK_BASE_URL : apiPath;
     }
 
     if (baseUrl.endsWith("/")) {
       baseUrl = baseUrl.slice(0, baseUrl.length - 1);
     }
-    if (!baseUrl.startsWith("http") && !baseUrl.startsWith(ApiPath.XAI)) {
+    if (!baseUrl.startsWith("http") && !baseUrl.startsWith(ApiPath.DeepSeek)) {
       baseUrl = "https://" + baseUrl;
     }
 
@@ -77,8 +83,13 @@ export class XAIApi implements LLMApi {
   async chat(options: ChatOptions) {
     const messages: ChatOptions["messages"] = [];
     for (const v of options.messages) {
-      const content = getWebReferenceMessageTextContent(v);
-      messages.push({ role: v.role, content });
+      if (v.role === "assistant") {
+        const content = getMessageTextContentWithoutThinking(v);
+        messages.push({ role: v.role, content });
+      } else {
+        const content = getWebReferenceMessageTextContent(v);
+        messages.push({ role: v.role, content });
+      }
     }
 
     const modelConfig = {
@@ -98,22 +109,26 @@ export class XAIApi implements LLMApi {
       presence_penalty: modelConfig.presence_penalty,
       frequency_penalty: modelConfig.frequency_penalty,
       top_p: modelConfig.top_p,
+      // max_tokens: Math.max(modelConfig.max_tokens, 1024),
+      // Please do not ask me why not send max_tokens, no reason, this param is just shit, I dont want to explain anymore.
     };
 
-    console.log("[Request] xai payload: ", requestPayload);
+    console.log("[Request] openai payload: ", requestPayload);
 
     const shouldStream = !!options.config.stream;
     const controller = new AbortController();
     options.onController?.(controller);
 
     try {
-      const chatPath = this.path(XAI.ChatPath);
+      const chatPath = this.path(DeepSeek.ChatPath);
       const chatPayload = {
         method: "POST",
         body: JSON.stringify(requestPayload),
         signal: controller.signal,
         headers: getHeaders(),
       };
+
+      // console.log(chatPayload);
 
       // make a fetch request
       const requestTimeoutId = setTimeout(
@@ -122,13 +137,14 @@ export class XAIApi implements LLMApi {
       );
 
       if (shouldStream) {
-        const [tools, funcs] = [[], {}];
         // const [tools, funcs] = usePluginStore
-        //   .getState()
-        //   .getAsTools(
-        //     useChatStore.getState().currentSession().mask?.plugin || [],
-        //   );
-        return stream(
+        //     .getState()
+        //     .getAsTools(
+        //         useChatStore.getState().currentSession().mask?.plugin || [],
+        //     );
+        const tools = null;
+        const funcs: Record<string, Function> = {};
+        return streamWithThink(
           chatPath,
           requestPayload,
           getHeaders(),
@@ -141,8 +157,9 @@ export class XAIApi implements LLMApi {
             const json = JSON.parse(text);
             const choices = json.choices as Array<{
               delta: {
-                content: string;
+                content: string | null;
                 tool_calls: ChatMessageTool[];
+                reasoning_content: string | null;
               };
             }>;
             const tool_calls = choices[0]?.delta?.tool_calls;
@@ -164,7 +181,36 @@ export class XAIApi implements LLMApi {
                 runTools[index]["function"]["arguments"] += args;
               }
             }
-            return choices[0]?.delta?.content;
+            const reasoning = choices[0]?.delta?.reasoning_content;
+            const content = choices[0]?.delta?.content;
+
+            // Skip if both content and reasoning_content are empty or null
+            if (
+              (!reasoning || reasoning.trim().length === 0) &&
+              (!content || content.trim().length === 0)
+            ) {
+              return {
+                isThinking: false,
+                content: "",
+              };
+            }
+
+            if (reasoning && reasoning.trim().length > 0) {
+              return {
+                isThinking: true,
+                content: reasoning,
+              };
+            } else if (content && content.trim().length > 0) {
+              return {
+                isThinking: false,
+                content: content,
+              };
+            }
+
+            return {
+              isThinking: false,
+              content: "",
+            };
           },
           // processToolMessage, include tool_calls message and tool call results
           (

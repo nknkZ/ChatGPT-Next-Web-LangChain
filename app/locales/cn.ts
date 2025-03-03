@@ -73,9 +73,14 @@ const cn = {
       DisablePlugins: "关闭插件",
       UploadImage: "上传图片",
       UploadFle: "上传文件",
+      OpenWebSearch: "开启联网",
+      CloseWebSearch: "关闭联网",
+      EnableThinking: "开启思考",
+      DisableThinking: "关闭思考",
     },
     Rename: "重命名对话",
     Typing: "正在输入…",
+    Searching: "联网搜索中…",
     Input: (submitKey: string) => {
       var inputHints = `${submitKey} 发送`;
       if (submitKey === String(SubmitKey.Enter)) {
@@ -448,6 +453,17 @@ const cn = {
           SubTitle: "样例：",
         },
       },
+      DeepSeek: {
+        ApiKey: {
+          Title: "接口密钥",
+          SubTitle: "使用自定义DeepSeek API Key",
+          Placeholder: "DeepSeek API Key",
+        },
+        Endpoint: {
+          Title: "接口地址",
+          SubTitle: "样例：",
+        },
+      },
       XAI: {
         ApiKey: {
           Title: "接口密钥",
@@ -464,6 +480,17 @@ const cn = {
           Title: "接口密钥",
           SubTitle: "使用自定义 ChatGLM API Key",
           Placeholder: "ChatGLM API Key",
+        },
+        Endpoint: {
+          Title: "接口地址",
+          SubTitle: "样例：",
+        },
+      },
+      SiliconFlow: {
+        ApiKey: {
+          Title: "接口密钥",
+          SubTitle: "使用自定义硅基流动 API Key",
+          Placeholder: "硅基流动 API Key",
         },
         Endpoint: {
           Title: "接口地址",
@@ -519,6 +546,11 @@ const cn = {
     MaxTokens: {
       Title: "单次回复限制 (max_tokens)",
       SubTitle: "单次交互所用的最大 Token 数",
+    },
+    BudgetTokens: {
+      Title: "扩展思考预算限制 (budget_tokens)",
+      SubTitle:
+        "内部推理过程中允许使用的最大令牌数，budget_tokens 必须始终小于 max_tokens。",
     },
     PresencePenalty: {
       Title: "话题新鲜度 (presence_penalty)",
