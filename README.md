@@ -30,6 +30,8 @@
 >
 > 由于 Anthropic 不提供嵌入模型，请添加 RAG 功能的 ollama 嵌入模型配置，如不配置，**WebBrowser** 和 **PDFBrowser** 插件将无法使用。
 
+![cover](./docs/images/gemini-image-generation.png)
+
 ![cover](./docs/images/thinking-example.png)
 
 ![cover](./docs/images/rag-example-2.jpg)
@@ -41,6 +43,10 @@
 ![dall-e-plugin](./docs/images/dalle-plugin-example.png)
 
 ## 主要功能
+
+- 支持**gpt-image-1** 图像生成模型
+
+- 支持**gemini** (gemini-2.0-flash-exp) 文生图多模态模型
 
 - 支持**深度思考**
   
@@ -447,3 +453,6 @@ docker run -d -p 3000:3000 \
 ## 开源协议
 
 [MIT](https://opensource.org/license/mit/)
+
+
+[![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")

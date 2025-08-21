@@ -19,11 +19,17 @@ import {
 import { collectModelsWithDefaultModel } from "@/app/utils/model";
 import {
   preProcessImageAndWebReferenceContent,
-  preProcessImageContent,
-  stream,
+  streamWithThink,
 } from "@/app/utils/chat";
 import { cloudflareAIGatewayUrl } from "@/app/utils/cloudflare";
-import { DalleSize, DalleQuality, DalleStyle } from "@/app/typing";
+import {
+  DalleSize,
+  DalleQuality,
+  DalleStyle,
+  GPTImageSize,
+  GPTImageQuality,
+  GPTImageBackground,
+} from "@/app/typing";
 
 import {
   AgentChatOptions,
@@ -47,8 +53,11 @@ import { getClientConfig } from "@/app/config/client";
 import {
   getMessageTextContent,
   isVisionModel,
-  isDalle3 as _isDalle3,
+  isOpenAIImageGenerationModel,
   getWebReferenceMessageTextContent,
+  getTimeoutMSByModel,
+  isGPTImageModel,
+  isDalle3,
 } from "@/app/utils";
 
 export interface OpenAIListModelResponse {
@@ -73,6 +82,7 @@ export interface RequestPayload {
   frequency_penalty: number;
   top_p: number;
   max_tokens?: number;
+  max_completion_tokens?: number;
 }
 
 export interface DalleRequestPayload {
@@ -82,7 +92,17 @@ export interface DalleRequestPayload {
   n: number;
   size: DalleSize;
   quality: DalleQuality;
-  style: DalleStyle;
+  style?: DalleStyle;
+}
+
+export interface GPTImageRequestPayload {
+  model: string;
+  prompt: string;
+  response_format: "url" | "b64_json";
+  n: number;
+  size: GPTImageSize;
+  quality: GPTImageQuality;
+  background?: GPTImageBackground;
 }
 
 export class ChatGPTApi implements LLMApi {
@@ -220,24 +240,43 @@ export class ChatGPTApi implements LLMApi {
       },
     };
 
-    let requestPayload: RequestPayload | DalleRequestPayload;
+    let requestPayload:
+      | RequestPayload
+      | DalleRequestPayload
+      | GPTImageRequestPayload;
 
-    const isDalle3 = _isDalle3(options.config.model);
-    const isO1 = options.config.model.startsWith("o1");
-    if (isDalle3) {
+    const isImageGenModel = isOpenAIImageGenerationModel(options.config.model);
+    const isOseries =
+      options.config.model.startsWith("o1") ||
+      options.config.model.startsWith("o3") ||
+      options.config.model.startsWith("o4");
+
+    if (isImageGenModel) {
       const prompt = getMessageTextContent(
         options.messages.slice(-1)?.pop() as any,
       );
-      requestPayload = {
-        model: options.config.model,
-        prompt,
-        // URLs are only valid for 60 minutes after the image has been generated.
-        response_format: "b64_json", // using b64_json, and save image in CacheStorage
-        n: 1,
-        size: options.config?.size ?? "1024x1024",
-        quality: options.config?.quality ?? "standard",
-        style: options.config?.style ?? "vivid",
-      };
+      if (isGPTImageModel(options.config.model)) {
+        requestPayload = {
+          model: options.config.model,
+          prompt,
+          // URLs are only valid for 60 minutes after the image has been generated.
+          response_format: "b64_json", // using b64_json, and save image in CacheStorage
+          n: 1,
+          size: options.config?.size ?? "auto",
+          quality: options.config?.quality ?? "auto",
+        } as GPTImageRequestPayload;
+      } else {
+        requestPayload = {
+          model: options.config.model,
+          prompt,
+          // URLs are only valid for 60 minutes after the image has been generated.
+          response_format: "b64_json", // using b64_json, and save image in CacheStorage
+          n: 1,
+          size: options.config?.size ?? "1024x1024",
+          quality: options.config?.quality ?? "standard",
+          style: options.config?.style ?? "vivid",
+        } as DalleRequestPayload;
+      }
     } else {
       const visionModel = isVisionModel(options.config.model);
       const messages: ChatOptions["messages"] = [];
@@ -245,32 +284,38 @@ export class ChatGPTApi implements LLMApi {
         const content = visionModel
           ? await preProcessImageAndWebReferenceContent(v)
           : getWebReferenceMessageTextContent(v);
-        if (!(isO1 && v.role === "system"))
+        if (!(isOseries && v.role === "system"))
           messages.push({ role: v.role, content });
       }
 
-      // O1 not support image, tools (plugin in ChatGPTNextWeb) and system, stream, logprobs, temperature, top_p, n, presence_penalty, frequency_penalty yet.
+      // O1 support image, tools (except o4-mini for now) and system, stream, *NOT* logprobs, temperature, top_p, n, presence_penalty, frequency_penalty yet.
       requestPayload = {
         messages,
-        stream: !isO1 ? options.config.stream : false,
+        stream: options.config.stream,
         model: modelConfig.model,
-        temperature: !isO1 ? modelConfig.temperature : 1,
-        presence_penalty: !isO1 ? modelConfig.presence_penalty : 0,
-        frequency_penalty: !isO1 ? modelConfig.frequency_penalty : 0,
-        top_p: !isO1 ? modelConfig.top_p : 1,
+        temperature: !isOseries ? modelConfig.temperature : 1,
+        presence_penalty: !isOseries ? modelConfig.presence_penalty : 0,
+        frequency_penalty: !isOseries ? modelConfig.frequency_penalty : 0,
+        top_p: !isOseries ? modelConfig.top_p : 1,
         // max_tokens: Math.max(modelConfig.max_tokens, 1024),
         // Please do not ask me why not send max_tokens, no reason, this param is just shit, I dont want to explain anymore.
       };
 
+
       // add max_tokens to vision model
+      // O系列 使用 max_completion_tokens 控制token数 (https://platform.openai.com/docs/guides/reasoning#controlling-costs)
       if (visionModel) {
-        requestPayload["max_tokens"] = Math.max(modelConfig.max_tokens, 4000);
+        if (isOseries) {
+          requestPayload["max_completion_tokens"] = 23456;
+        } else {
+          requestPayload["max_tokens"] = Math.max(modelConfig.max_tokens, 4000);
+        }
       }
     }
 
     console.log("[Request] openai payload: ", requestPayload);
 
-    const shouldStream = !isDalle3 && !!options.config.stream && !isO1;
+    const shouldStream = !isImageGenModel && !!options.config.stream;
     const controller = new AbortController();
     options.onController?.(controller);
 
@@ -296,26 +341,27 @@ export class ChatGPTApi implements LLMApi {
             model?.provider?.providerName === ServiceProvider.Azure,
         );
         chatPath = this.path(
-          (isDalle3 ? Azure.ImagePath : Azure.ChatPath)(
+          (isImageGenModel ? Azure.ImagePath : Azure.ChatPath)(
             (model?.displayName ?? model?.name) as string,
             useCustomConfig ? useAccessStore.getState().azureApiVersion : "",
           ),
         );
       } else {
         chatPath = this.path(
-          isDalle3 ? OpenaiPath.ImagePath : OpenaiPath.ChatPath,
+          isImageGenModel ? OpenaiPath.ImagePath : OpenaiPath.ChatPath,
         );
       }
       if (shouldStream) {
+        let index = -1;
         // const [tools, funcs] = usePluginStore
         //   .getState()
         //   .getAsTools(
         //     useChatStore.getState().currentSession().mask?.plugin || [],
         //   );
-        // console.log("getAsTools", tools, funcs);
         const tools = null;
         const funcs: Record<string, Function> = {};
-        stream(
+        // console.log("getAsTools", tools, funcs);
+        streamWithThink(
           chatPath,
           requestPayload,
           getHeaders(),
@@ -330,14 +376,18 @@ export class ChatGPTApi implements LLMApi {
               delta: {
                 content: string;
                 tool_calls: ChatMessageTool[];
+                reasoning_content: string | null;
               };
             }>;
+
+            if (!choices?.length) return { isThinking: false, content: "" };
+
             const tool_calls = choices[0]?.delta?.tool_calls;
             if (tool_calls?.length > 0) {
-              const index = tool_calls[0]?.index;
               const id = tool_calls[0]?.id;
               const args = tool_calls[0]?.function?.arguments;
               if (id) {
+                index += 1;
                 runTools.push({
                   id,
                   type: tool_calls[0]?.type,
@@ -351,7 +401,37 @@ export class ChatGPTApi implements LLMApi {
                 runTools[index]["function"]["arguments"] += args;
               }
             }
-            return choices[0]?.delta?.content;
+
+            const reasoning = choices[0]?.delta?.reasoning_content;
+            const content = choices[0]?.delta?.content;
+
+            // Skip if both content and reasoning_content are empty or null
+            if (
+              (!reasoning || reasoning.length === 0) &&
+              (!content || content.length === 0)
+            ) {
+              return {
+                isThinking: false,
+                content: "",
+              };
+            }
+
+            if (reasoning && reasoning.length > 0) {
+              return {
+                isThinking: true,
+                content: reasoning,
+              };
+            } else if (content && content.length > 0) {
+              return {
+                isThinking: false,
+                content: content,
+              };
+            }
+
+            return {
+              isThinking: false,
+              content: "",
+            };
           },
           // processToolMessage, include tool_calls message and tool call results
           (
@@ -359,6 +439,8 @@ export class ChatGPTApi implements LLMApi {
             toolCallMessage: any,
             toolCallResult: any[],
           ) => {
+            // reset index value
+            index = -1;
             // @ts-ignore
             requestPayload?.messages?.splice(
               // @ts-ignore
@@ -381,7 +463,7 @@ export class ChatGPTApi implements LLMApi {
         // make a fetch request
         const requestTimeoutId = setTimeout(
           () => controller.abort(),
-          isDalle3 || isO1 ? REQUEST_TIMEOUT_MS * 2 : REQUEST_TIMEOUT_MS, // dalle3 using b64_json is slow.
+          getTimeoutMSByModel(options.config.model),
         );
 
         const res = await fetch(chatPath, chatPayload);

@@ -106,6 +106,7 @@ export const STORAGE_KEY = "chatgpt-next-web";
 
 export const REQUEST_TIMEOUT_MS = 60000;
 export const REQUEST_TIMEOUT_MS_FOR_THINKING = REQUEST_TIMEOUT_MS * 5;
+export const REQUEST_TIMEOUT_MS_FOR_IMAGE_GENERATION = REQUEST_TIMEOUT_MS * 5;
 
 export const EXPORT_MESSAGE_CLASS_NAME = "export-markdown";
 
@@ -294,8 +295,12 @@ export const KnowledgeCutOffDate: Record<string, string> = {
   "o1-preview": "2023-10",
   "o1-2024-12-17": "2023-10",
   o1: "2023-10",
+  "o1-pro": "2023-10",
   "o3-mini-2025-01-31": "2023-10",
   "o3-mini": "2023-10",
+  "gpt-4.1": "2024-6",
+  "gpt-4.1-mini": "2024-6",
+  "gpt-4.1-nano": "2024-6",
   // After improvements,
   // it's now easier to add "KnowledgeCutOffDate" instead of stupid hardcoding it, as was done previously.
   "gemini-pro": "2023-12",
@@ -321,19 +326,28 @@ export const DEFAULT_TTS_VOICES = [
 export const VISION_MODEL_REGEXES = [
   /vision/,
   /gpt-4o/,
-  /claude-3/,
-  /gemini-1\.5/,
-  /gemini-exp/,
-  /gemini-2\.0/,
+  /gpt-4o-mini/,
+  /gpt-4\.1/,
+  /gpt-4\.1-mini/,
+  /gpt-4\.1-nano/,
+  /gpt-4\.5-preview/,
+  /gpt-4\.5-preview-2025-02-27/,
+  /claude/,
+  /gemini-(.*)/,
   /learnlm/,
   /qwen-vl/,
   /qwen2-vl/,
   /gpt-4-turbo(?!.*preview)/, // Matches "gpt-4-turbo" but not "gpt-4-turbo-preview"
   /^dall-e-3$/, // Matches exactly "dall-e-3"
+  /^gpt-image-1$/,
   /glm-4v/,
+  /vl/i,
+  /o1/,
+  /o3/,
+  /o4-mini/,
 ];
 
-export const EXCLUDE_VISION_MODEL_REGEXES = [/claude-3-5-haiku-20241022/];
+export const EXCLUDE_VISION_MODEL_REGEXES = [/claude-2/];
 
 export const DEFAULT_STT_ENGINE = "WebAPI";
 export const DEFAULT_STT_ENGINES = ["WebAPI", "OpenAI Whisper"];
@@ -363,15 +377,25 @@ const openaiModels = [
   "gpt-4.5-preview",
   "gpt-4.5-preview-2025-02-27",
   "dall-e-3",
+  "o1",
   "o1-mini",
   "o1-preview",
+  "o1-pro",
   "o3-mini",
+  "o3",
+  "gpt-4.1",
+  "gpt-4.1-mini",
+  "gpt-4.1-nano",
+  "gpt-image-1",
+  "o4-mini",
 ];
 
 const googleModels = [
   // https://ai.google.dev/gemini-api/docs/models/gemini?hl=zh-cn
+  "gemini-2.5-flash-preview-04-17",
+  "gemini-2.5-pro-preview-03-25	",
   "gemini-2.0-flash",
-  "gemini-2.0-flash-lite-preview-02-05",
+  "gemini-2.0-flash-lite",
   "gemini-1.5-flash",
   "gemini-1.5-flash-8b",
   "gemini-1.5-pro",
@@ -397,6 +421,8 @@ const anthropicModels = [
   "claude-3-5-sonnet-latest",
   "claude-3-7-sonnet-20250219",
   "claude-3-7-sonnet-latest",
+  "claude-opus-4-20250514",
+  "claude-sonnet-4-20250514",
 ];
 
 const baiduModels = [

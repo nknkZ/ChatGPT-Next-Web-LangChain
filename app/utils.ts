@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { showToast } from "./components/ui-lib";
 import Locale, { getLang } from "./locales";
-import { RequestMessage } from "./client/api";
+import { MultimodalContent, RequestMessage } from "./client/api";
 import {
   DEFAULT_MODELS,
+  EXCLUDE_VISION_MODEL_REGEXES,
   REQUEST_TIMEOUT_MS,
+  REQUEST_TIMEOUT_MS_FOR_IMAGE_GENERATION,
   REQUEST_TIMEOUT_MS_FOR_THINKING,
+  VISION_MODEL_REGEXES,
 } from "./constant";
 import { ServiceProvider } from "./constant";
 // import { fetch as tauriFetch, ResponseType } from "@tauri-apps/api/http";
@@ -14,6 +17,7 @@ import {
   WEB_SEARCH_ANSWER_EN_PROMPT,
   WEB_SEARCH_ANSWER_ZH_PROMPT,
 } from "./prompt";
+import { useAccessStore } from "./store";
 
 export function trimTopic(topic: string) {
   // Fix an issue where double quotes still show in the Indonesian language
@@ -266,15 +270,20 @@ ${result.content}
 }
 
 export function getMessageTextContent(message: RequestMessage) {
-  if (typeof message.content === "string") {
-    return message.content;
+  return getTextContent(message.content);
+}
+
+export function getTextContent(content: string | MultimodalContent[]) {
+  if (typeof content === "string") {
+    return content;
   }
-  for (const c of message.content) {
+  let combinedText = "";
+  for (const c of content) {
     if (c.type === "text") {
-      return c.text ?? "";
+      combinedText += (c.text ?? "") + " ";
     }
   }
-  return "";
+  return combinedText.trim();
 }
 
 export function getMessageTextContentWithoutThinking(message: RequestMessage) {
@@ -313,33 +322,24 @@ export function getMessageImages(message: RequestMessage): string[] {
 }
 
 export function isVisionModel(model: string) {
-  // Note: This is a better way using the TypeScript feature instead of `&&` or `||` (ts v5.5.0-dev.20240314 I've been using)
-
-  const visionKeywords = [
-    "vision",
-    "claude-3",
-    "gemini-1.5-pro",
-    "gemini-1.5-flash",
-    "gemini-exp-1114",
-    "gpt-4o",
-    "gpt-4o-mini",
-    "gpt-4.5-preview",
-    "gpt-4.5-preview-2025-02-27",
-  ];
-
-  var googleModels = DEFAULT_MODELS.filter(
-    (model) => model.provider.id === "google",
-  ).map((model) => model.name);
-
-  const isGpt4Turbo =
-    model.includes("gpt-4-turbo") && !model.includes("preview");
-
+  const visionModels = useAccessStore.getState().visionModels;
+  const envVisionModels = visionModels?.split(",").map((m) => m.trim());
+  if (envVisionModels?.includes(model)) {
+    return true;
+  }
   return (
-    visionKeywords.some((keyword) => model.includes(keyword)) ||
-    isGpt4Turbo ||
-    isDalle3(model) ||
-    googleModels.some((keyword) => model.includes(keyword))
+    !EXCLUDE_VISION_MODEL_REGEXES.some((regex) => regex.test(model)) &&
+    VISION_MODEL_REGEXES.some((regex) => regex.test(model))
   );
+}
+
+export function isOpenAIImageGenerationModel(model: string) {
+  const specialModels = ["dall-e-3", "gpt-image-1"];
+  return specialModels.some((keyword) => model === keyword);
+}
+
+export function isGPTImageModel(model: string) {
+  return "gpt-image-1" === model;
 }
 
 export function isDalle3(model: string) {
@@ -348,11 +348,15 @@ export function isDalle3(model: string) {
 
 export function getTimeoutMSByModel(model: string) {
   model = model.toLowerCase();
+  if (model.startsWith("gemini-2.0-flash-exp")) {
+    return REQUEST_TIMEOUT_MS_FOR_IMAGE_GENERATION;
+  }
   if (
     model.startsWith("dall-e") ||
     model.startsWith("dalle") ||
     model.startsWith("o1") ||
     model.startsWith("o3") ||
+    model.startsWith("o4") ||
     model.includes("deepseek-r") ||
     model.includes("-thinking")
   )
@@ -397,7 +401,7 @@ export function isSupportRAGModel(modelName: string) {
 }
 
 export function isFunctionCallModel(modelName: string) {
-  if (isDalle3(modelName)) {
+  if (isOpenAIImageGenerationModel(modelName)) {
     return false;
   }
   const specialModels = [
@@ -427,10 +431,14 @@ export function isFunctionCallModel(modelName: string) {
     "claude-3-5-haiku-latest",
     "claude-3-7-sonnet-20250219",
     "claude-3-7-sonnet-latest",
+    "o1",
+    "o3",
+    "gpt-4.1",
   ];
   if (specialModels.some((keyword) => modelName === keyword)) return true;
   return DEFAULT_MODELS.filter(
-    (model) => model.provider.id === "openai" && !model.name.includes("o1"),
+    (model) =>
+      model.provider.id === "openai" && !model.name.includes("o4-mini"),
   ).some((model) => model.name === modelName);
 }
 
@@ -439,6 +447,11 @@ export function isClaudeThinkingModel(modelName: string) {
     "claude-3-7-sonnet-20250219",
     "claude-3-7-sonnet-latest",
   ];
+  return specialModels.some((keyword) => modelName === keyword);
+}
+
+export function isImageGenerationModel(modelName: string) {
+  const specialModels = ["gemini-2.0-flash-exp"];
   return specialModels.some((keyword) => modelName === keyword);
 }
 
